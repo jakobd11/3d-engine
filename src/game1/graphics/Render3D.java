@@ -8,6 +8,7 @@ import game1.input.Controller;
 public class Render3D extends Render {
 
 	public double[] zBuffer;
+	public double[] zBufferWall;
 	private double renderDistance = 4000;
 
 	public static double forward;
@@ -16,18 +17,23 @@ public class Render3D extends Render {
 	public static double rotation;
 	public static double cosine;
 	public static double sine;
+	public static double floorPos;
+	public static double ceilingPos;
 
 	public Render3D(int width, int height) {
 		super(width, height);
 		zBuffer = new double[width * height];
+		zBufferWall = new double[width];
 	}
 
 	public void floor(Game game) {
+		
+		for (int x = 0; x < width; x++) zBufferWall[x] = 0;
 
 //		double renderDistance = 200;
 
-		double floorPos = 8.0;
-		double ceilingPos = 8.0;
+		floorPos = 8.0;
+		ceilingPos = 8.0;
 
 		forward = game.controls.z;
 		right = game.controls.x;
@@ -61,8 +67,8 @@ public class Render3D extends Render {
 				depth *= z;
 				double xx = depth * cosine + z * sine + right;
 				double yy = z * cosine - depth * sine + forward;
-				int xPix = (int) (xx + right);
-				int yPix = (int) (yy + forward);
+				int xPix = (int) Math.floor(xx);
+				int yPix = (int) Math.floor(yy);
 
 				// render fade
 				zBuffer[x + y * width] = z;
@@ -83,8 +89,8 @@ public class Render3D extends Render {
 	public void renderWall(double xLeft, double xRight, double zDistanceLeft, double zDistanceRight, double yHeight) {
 
 		// calculating left corner of wall relative to player
-		double xcLeft = ((xLeft) - right / 8);
-		double zcLeft = ((zDistanceLeft) - forward / 8);
+		double xcLeft = ((xLeft) - right/16);
+		double zcLeft = ((zDistanceLeft) - forward/16);
 
 		// calculating rotation of left corner of wall
 		double rotLeftSideX = xcLeft * cosine - zcLeft * sine;
@@ -95,8 +101,8 @@ public class Render3D extends Render {
 		double yCornerBL = ((0.5 - yHeight) + (up / 16));
 
 		// calculating right corner of wall relative to player
-		double xcRight = ((xRight) - right / 8);
-		double zcRight = ((zDistanceRight) - forward / 8);
+		double xcRight = ((xRight) - right/16);
+		double zcRight = ((zDistanceRight) - forward/16);
 
 		// calculating rotation of right corner of wall
 		double rotRightSideX = xcRight * cosine - zcRight * sine;
@@ -105,31 +111,32 @@ public class Render3D extends Render {
 		// calculating height of left corner of wall
 		double yCornerTR = ((-yHeight) + (up / 16));
 		double yCornerBR = ((0.5 - yHeight) + (up / 16));
-
-		// assigning pixel x-z location
-		double xPixelLeft = (rotLeftSideX / rotLeftSideZ * height + width / 2);
-		double xPixelRight = (rotRightSideX / rotRightSideZ * height + width / 2);
-
+		
 		double tex30 = 0;
 		double tex40 = 8;
-		double clip = 0.5;
+		double clip = 0.1;
 
+		// clipping algorithm
 		if (rotLeftSideZ < clip && rotRightSideZ < clip)
 			return;
 
 		if (rotLeftSideZ < clip) {
-			double clip0 = (clip - rotLeftSideZ) / (rotLeftSideZ - rotLeftSideZ);
+			double clip0 = (clip - rotLeftSideZ) / (rotRightSideZ - rotLeftSideZ);
+			rotLeftSideX = rotLeftSideX + (rotRightSideX - rotLeftSideX) * clip0;
 			rotLeftSideZ = rotLeftSideZ + (rotRightSideZ - rotLeftSideZ) * clip0;
-			rotLeftSideX = rotLeftSideZ + (rotRightSideX - rotLeftSideX) * clip0;
-			tex30 += (tex40 - tex30) * clip0;
+			tex30 = tex30 + (tex40 - tex30) * clip0;
 		}
 
 		if (rotRightSideZ < clip) {
-			double clip0 = (clip - rotLeftSideZ) / (rotLeftSideZ - rotLeftSideZ);
+			double clip0 = (clip - rotLeftSideZ) / (rotRightSideZ - rotLeftSideZ);
+			rotRightSideX = rotLeftSideX + (rotRightSideX - rotLeftSideX) * clip0;
 			rotRightSideZ = rotLeftSideZ + (rotRightSideZ - rotLeftSideZ) * clip0;
-			rotRightSideX = rotLeftSideZ + (rotRightSideX - rotLeftSideX) * clip0;
-			tex30 += (tex40 - tex30) * clip0;
+			tex40 = tex30 + (tex40 - tex30) * clip0;
 		}
+		
+		// assigning pixel x-z location
+		double xPixelLeft = (rotLeftSideX / rotLeftSideZ * height + width / 2);
+		double xPixelRight = (rotRightSideX / rotRightSideZ * height + width / 2);
 
 		// if the pixels swap location they dont render
 		if (xPixelLeft >= xPixelRight)
@@ -159,8 +166,12 @@ public class Render3D extends Render {
 
 		for (int x = xPixelLeftInt; x < xPixelRightInt; x++) {
 			double pixelRotation = (x - xPixelLeft) / (xPixelRight - xPixelLeft);
+			double zWall = (tex1 + (tex2 - tex1) * pixelRotation);
+			
+			if (zBufferWall[x]>zWall) continue;
+			zBufferWall[x] = zWall;
 
-			int xTexture = (int) ((tex3 + tex4 * pixelRotation) / (tex1 + (tex2 - tex1) * pixelRotation));
+			int xTexture = (int) ((tex3 + tex4 * pixelRotation) / zWall);
 
 			double yPixelTop = yPixelLeftTop + (yPixelRightTop - yPixelLeftTop) * pixelRotation;
 			double yPixelBottom = yPixelLeftBottom + (yPixelRightBottom - yPixelLeftBottom) * pixelRotation;
