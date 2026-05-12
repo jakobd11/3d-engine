@@ -23,7 +23,7 @@ public class Screen extends Render {
 		
 		render.floor(game);
 		
-		for (int i = 0; i < 100; i++) {
+		for (int i = 0; i < 1; i++) {
 			int x = random.nextInt(20) - 10;
 			int z = random.nextInt(20) - 10;
 			int thickness = random.nextInt(3) + 1;

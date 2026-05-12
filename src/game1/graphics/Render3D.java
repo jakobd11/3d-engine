@@ -117,8 +117,9 @@ public class Render3D extends Render {
 		double clip = 0.1;
 
 		// clipping algorithm
-		if (rotLeftSideZ < clip && rotRightSideZ < clip)
+		if (rotLeftSideZ < clip && rotRightSideZ < clip) {
 			return;
+		}
 
 		if (rotLeftSideZ < clip) {
 			double clip0 = (clip - rotLeftSideZ) / (rotRightSideZ - rotLeftSideZ);
